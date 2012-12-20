@@ -65,7 +65,7 @@ class Ui(object):
         # Which player to use for playing videos.
         self._player = player
 
-        self._video = video
+        self._video = int(video)
         self._playlist = playlist
 
     def run(self):
