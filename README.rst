@@ -27,7 +27,7 @@ Usage
                             specifies what program to use to play videos (default:
                         mplayer)
       --video {0,1}         1 : show video, 0 : don't display video (default: 1)
-      --continuos {0,1}     1 : play all, 0 : play 1 (default: 1)
+      --playlist {0,1}     1 : play all, 0 : play only one item (default: 1)
       --searchterm SEARCHTERM
                             enter search term (default: None)
 

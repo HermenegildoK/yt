@@ -23,11 +23,11 @@ def main():
     parser = argparse.ArgumentParser(prog='yt',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--player",default=MPLAYER_MODE,choices=[MPLAYER_MODE,OMXPLAYER_MODE],help="specifies what program to use to play videos")
     parser.add_argument("--video",default=1,choices=['0', '1'],help="1 : show video, 0 : don't display video")
-    parser.add_argument("--continuos",default=1,choices=['0', '1'],help="1 : play all, 0 : play 1")
+    parser.add_argument("--playlist",default=1,choices=['0', '1'],help="1 : play all, 0 : play 1")
     parser.add_argument("--searchterm",help="enter search term")
     args = parser.parse_args(sys.argv[1:])
 
-    ui = Ui(args.player, args.video, args.continuos, args.searchterm)
+    ui = Ui(args.player, args.video, args.playlist, args.searchterm)
     ui.run()
 
 class ScreenSizeError(Exception):
@@ -38,7 +38,7 @@ class ScreenSizeError(Exception):
         return m
 
 class Ui(object):
-    def __init__(self,player, video, continuos, searchterm):
+    def __init__(self,player, video, playlist, searchterm):
         # A cache of the last feed result
         self._last_feed = None
 
@@ -66,7 +66,7 @@ class Ui(object):
         self._player = player
 
         self._video = video
-        self._continuous = continuos
+        self._playlist = playlist
 
     def run(self):
         # Get the locale encoding
@@ -187,7 +187,9 @@ class Ui(object):
 
     def _run_pager(self):
         idx = 0
-        c = ord('0')
+        c = -1
+        playlist_idx = 0
+        self._show_message('Initializing ...')
         while True:
             # Get size of window and => number of items/page
             (h, w) = self._main_win.getmaxyx()
@@ -213,17 +215,24 @@ class Ui(object):
             # Update the screen with the new items
             self._update_screen()
 
-            cc = -1
             for cont in xrange(5):
-                cc = self._main_win.getch()
                 sleep(1)
-                if cc != -1 or idx==0:
+                self._show_message('Waiting for your input')
+                c = self._main_win.getch()
+                if c != -1:
                     break
 
-            if self._continuous:
-                if cc == -1:
-                    cc = c + 1
-            c = cc
+            if self._playlist:
+                if c == -1:
+                    self._show_message('Playing {0}. item on page'.format(playlist_idx+1))
+                    sleep(1)
+                    self._play_video(playlist_idx)
+                    playlist_idx += 1
+                    if playlist_idx > n_per_page:
+                        playlist_idx = 0
+                        idx += n_per_page
+                        continue
+
             if c == ord('q'): # quit
                 break
             elif c == ord(']'): # next
@@ -256,9 +265,8 @@ class Ui(object):
                     self._last_feed = None
                     self._ordering = 'published'
                     idx = 0
-            elif c >= ord('1') and c <= ord('9'): # specific video
+            elif c >= ord('0') and c <= ord('9') : # specific video
                 self._play_video(c - ord('1'))
-
             elif c == ord('o'): # ordering
                 self._show_message('Order by: (v)iew count, (r)elevance, (p)ublication date or ra(t)ing?')
                 oc = self._main_win.getch()
@@ -284,6 +292,7 @@ class Ui(object):
             return
         item = self._items[idx]
         url = item['player']['default']
+        self._update_screen()
         self._show_message('Playing ' + item['title'])
         play_url(url,self._player, self._video)
 
@@ -401,7 +410,7 @@ def play_url(url,player,video):
         play_url_omxplayer(url)
 
 def play_url_mplayer(url,video):
-    if video == '1':
+    if video == 1:
         player = subprocess.Popen(
             ['mplayer', '-quiet', '-fs', '--', url.decode('UTF-8').strip()],
             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
