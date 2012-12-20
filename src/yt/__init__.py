@@ -66,7 +66,7 @@ class Ui(object):
         self._player = player
 
         self._video = int(video)
-        self._playlist = playlist
+        self._playlist = int(playlist)
 
     def run(self):
         # Get the locale encoding
@@ -112,7 +112,8 @@ class Ui(object):
 
         # Create the windows
         self._main_win = curses.newwin(h-1,w,1,0)
-        self._main_win.nodelay(1)
+        if self._playlist:
+            self._main_win.nodelay(1)
         self._status_bar = curses.newwin(1,w,0,0)
         self._status_bar.bkgd(' ', curses.color_pair(5))
         self._help_bar = curses.newwin(1,w,h-1,0)
@@ -215,14 +216,14 @@ class Ui(object):
             # Update the screen with the new items
             self._update_screen()
 
-            for cont in xrange(5):
-                sleep(1)
-                self._show_message('Waiting for your input')
-                c = self._main_win.getch()
-                if c != -1:
-                    break
-
             if self._playlist:
+                for cont in xrange(5):
+                    self._show_message('Waiting for your input')
+                    c = self._main_win.getch()
+                    if c != -1:
+                        break
+                    sleep(1)
+
                 if c == -1:
                     self._show_message('Playing {0}. item on page'.format(playlist_idx+1))
                     sleep(1)
@@ -231,7 +232,10 @@ class Ui(object):
                     if playlist_idx > n_per_page:
                         playlist_idx = 0
                         idx += n_per_page
-                        continue
+                    continue
+            else:
+                self._show_message('Waiting for your input')
+                c = self._main_win.getch()
 
             if c == ord('q'): # quit
                 break
