@@ -5,6 +5,15 @@
 
 News
 ====
+0.3
+-----
+
+*Release date: 20-Dec-2012*
+
+* Added option to play continuously
+* Added option to hide video in mplayer
+* Added option to enter search term (search term must be quoted if it consists of more words)
+
 
 0.2
 -----

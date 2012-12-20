@@ -11,6 +11,7 @@ import sys
 import urllib
 import urllib2
 import argparse
+from time import sleep
 
 # Define possible player modes.
 MPLAYER_MODE="mplayer"
@@ -21,10 +22,12 @@ def main():
     # Allow the user to specify whether to use mplayer or omxplayer for playing videos.
     parser = argparse.ArgumentParser(prog='yt',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--player",default=MPLAYER_MODE,choices=[MPLAYER_MODE,OMXPLAYER_MODE],help="specifies what program to use to play videos")
-   
+    parser.add_argument("--video",default=1,choices=['0', '1'],help="1 : show video, 0 : don't display video")
+    parser.add_argument("--continuos",default=1,choices=['0', '1'],help="1 : play all, 0 : play 1")
+    parser.add_argument("--searchterm",help="enter search term")
     args = parser.parse_args(sys.argv[1:])
 
-    ui = Ui(args.player)
+    ui = Ui(args.player, args.video, args.continuos, args.searchterm)
     ui.run()
 
 class ScreenSizeError(Exception):
@@ -35,7 +38,7 @@ class ScreenSizeError(Exception):
         return m
 
 class Ui(object):
-    def __init__(self,player):
+    def __init__(self,player, video, continuos, searchterm):
         # A cache of the last feed result
         self._last_feed = None
 
@@ -43,10 +46,10 @@ class Ui(object):
         self._ordering = 'relevance'
 
         # Specify the current feed
-        # if len(sys.argv) > 1:
-        #    self._feed = search(' '.join(sys.argv[1:]))
-        #else:
-        self._feed = standard_feed('most_viewed')
+        if searchterm > 1:
+            self._feed = search(searchterm)
+        else:
+            self._feed = standard_feed('most_viewed')
 
         # The items to display in the pager
         self._items = None
@@ -58,15 +61,18 @@ class Ui(object):
             'published': 'publication date',
             'rating': 'rating',
         }
-        
+
         # Which player to use for playing videos.
         self._player = player
+
+        self._video = video
+        self._continuous = continuos
 
     def run(self):
         # Get the locale encoding
         locale.setlocale(locale.LC_ALL, '')
         self._code = locale.getpreferredencoding()
-        
+
         # Start the curses main loop
         curses.wrapper(self._curses_main)
 
@@ -106,6 +112,7 @@ class Ui(object):
 
         # Create the windows
         self._main_win = curses.newwin(h-1,w,1,0)
+        self._main_win.nodelay(1)
         self._status_bar = curses.newwin(1,w,0,0)
         self._status_bar.bkgd(' ', curses.color_pair(5))
         self._help_bar = curses.newwin(1,w,h-1,0)
@@ -180,6 +187,7 @@ class Ui(object):
 
     def _run_pager(self):
         idx = 0
+        c = ord('0')
         while True:
             # Get size of window and => number of items/page
             (h, w) = self._main_win.getmaxyx()
@@ -205,7 +213,17 @@ class Ui(object):
             # Update the screen with the new items
             self._update_screen()
 
-            c = self._main_win.getch()
+            cc = -1
+            for cont in xrange(5):
+                cc = self._main_win.getch()
+                sleep(1)
+                if cc != -1 or idx==0:
+                    break
+
+            if self._continuous:
+                if cc == -1:
+                    cc = c + 1
+            c = cc
             if c == ord('q'): # quit
                 break
             elif c == ord(']'): # next
@@ -240,11 +258,12 @@ class Ui(object):
                     idx = 0
             elif c >= ord('1') and c <= ord('9'): # specific video
                 self._play_video(c - ord('1'))
+                idx += 1
             elif c == ord('o'): # ordering
                 self._show_message('Order by: (v)iew count, (r)elevance, (p)ublication date or ra(t)ing?')
                 oc = self._main_win.getch()
                 self._ordering = None
-                
+
                 while self._ordering is None:
                     if oc == ord('r'):
                         self._ordering = 'relevance'
@@ -265,8 +284,8 @@ class Ui(object):
             return
         item = self._items[idx]
         url = item['player']['default']
-        self._show_message('Playing ' + url)
-        play_url(url,self._player)
+        self._show_message('Playing ' + item['title'])
+        play_url(url,self._player, self._video)
 
     def _show_video_items(self, items):
         # Get size of window and maximum number of items per page
@@ -368,7 +387,7 @@ def number(n):
         return '%.1fk' % (n/1000.0,)
     return '%.1fM' % (n//1000000.0,)
 
-def play_url(url,player):
+def play_url(url,player,video):
     yt_dl = subprocess.Popen(['youtube-dl', '-g', url], stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     (url, err) = yt_dl.communicate()
     if yt_dl.returncode != 0:
@@ -377,16 +396,21 @@ def play_url(url,player):
 
     assert player in [MPLAYER_MODE,OMXPLAYER_MODE]
     if player == MPLAYER_MODE:
-        play_url_mplayer(url)
+        play_url_mplayer(url, video)
     else:
         play_url_omxplayer(url)
-    
-def play_url_mplayer(url):
-    player = subprocess.Popen(
+
+def play_url_mplayer(url,video):
+    if video == '1':
+        player = subprocess.Popen(
             ['mplayer', '-quiet', '-fs', '--', url.decode('UTF-8').strip()],
             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    else:
+        player = subprocess.Popen(
+            ['mplayer', '-quiet', '-novideo', '-fs', '--', url.decode('UTF-8').strip()],
+            stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     player.wait()
-        
+
 def play_url_omxplayer(url):
     player = subprocess.Popen(
             ['omxplayer', '-ohdmi', url.decode('UTF-8').strip()],
