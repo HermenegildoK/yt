@@ -258,7 +258,7 @@ class Ui(object):
                     idx = 0
             elif c >= ord('1') and c <= ord('9'): # specific video
                 self._play_video(c - ord('1'))
-                idx += 1
+
             elif c == ord('o'): # ordering
                 self._show_message('Order by: (v)iew count, (r)elevance, (p)ublication date or ra(t)ing?')
                 oc = self._main_win.getch()
