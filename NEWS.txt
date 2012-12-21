@@ -9,6 +9,13 @@ News
 0.4
 -----
 
+*Release date: 21-Dec-2012*
+
+* added input keys to change playlist mode and toggle video visibility (works after current video stops)
+
+0.4
+-----
+
 *Release date: 20-Dec-2012*
 
 * Fixed bug : skipping tracks

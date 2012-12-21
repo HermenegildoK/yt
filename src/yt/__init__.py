@@ -22,12 +22,12 @@ def main():
     # Allow the user to specify whether to use mplayer or omxplayer for playing videos.
     parser = argparse.ArgumentParser(prog='yt',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--player",default=MPLAYER_MODE,choices=[MPLAYER_MODE,OMXPLAYER_MODE],help="specifies what program to use to play videos")
-    parser.add_argument("--video",default=1,choices=['0', '1'],help="1 : show video, 0 : don't display video")
-    parser.add_argument("--playlist",default=1,choices=['0', '1'],help="1 : play all, 0 : play 1")
+    parser.add_argument("--novideo",action='store_false',help="if argument present don't display video, else show video")
+    parser.add_argument("--playlist",action='store_true',help="if argument present play all, else play only video you choose")
     parser.add_argument("--searchterm",help="enter search term")
     args = parser.parse_args(sys.argv[1:])
 
-    ui = Ui(args.player, args.video, args.playlist, args.searchterm)
+    ui = Ui(args.player, args.novideo, args.playlist, args.searchterm)
     ui.run()
 
 class ScreenSizeError(Exception):
@@ -38,7 +38,7 @@ class ScreenSizeError(Exception):
         return m
 
 class Ui(object):
-    def __init__(self,player, video, playlist, searchterm):
+    def __init__(self,player, novideo, playlist, searchterm):
         # A cache of the last feed result
         self._last_feed = None
 
@@ -65,8 +65,8 @@ class Ui(object):
         # Which player to use for playing videos.
         self._player = player
 
-        self._video = int(video)
-        self._playlist = int(playlist)
+        self._video = novideo
+        self._playlist = playlist
 
     def run(self):
         # Get the locale encoding
@@ -106,8 +106,10 @@ class Ui(object):
                 ('o', 'ordering'),
                 ('s', 'search'),
                 ('1-9', 'choose'),
-                ('v', 'choose index'),
+                ('i', 'choose index'),
                 ('u', 'user'),
+                ('p', 'toggle playlist mode'),
+                ('v', 'toggle video')
         ]
 
         # Create the windows
@@ -218,15 +220,15 @@ class Ui(object):
 
             if self._playlist:
                 for cont in xrange(5):
-                    self._show_message('Waiting for your input')
+                    if playlist_idx == 0:
+                        break
+                    self._show_message('Waiting {0} seconds for your input'.format(5-cont))
                     c = self._main_win.getch()
                     if c != -1:
                         break
                     sleep(1)
 
                 if c == -1:
-                    self._show_message('Playing {0}. item on page'.format(playlist_idx+1))
-                    sleep(1)
                     self._play_video(playlist_idx)
                     playlist_idx += 1
                     if playlist_idx > n_per_page:
@@ -255,7 +257,7 @@ class Ui(object):
                     self._last_feed = None
                     self._ordering = 'relevance'
                     idx = 0
-            elif c == ord('v'): # video
+            elif c == ord('i'): # chose video
                 s = self._input('number')
                 if s is not None:
                     try:
@@ -288,6 +290,15 @@ class Ui(object):
 
                 self._last_feed = None
                 idx = 0
+            elif c == ord('p'):
+                self._playlist = not self._playlist
+                if self._playlist:
+                    self._main_win.nodelay(1)
+                else:
+                    self._main_win.nodelay(0)
+                c = -1
+            elif c == ord('v'):
+                self._video = not self._video
 
 
     def _play_video(self, idx):
@@ -297,7 +308,7 @@ class Ui(object):
         item = self._items[idx]
         url = item['player']['default']
         self._update_screen()
-        self._show_message('Playing ' + item['title'])
+        self._show_message('Playing {0}. item : {1}'.format(idx+1, item['title']))
         play_url(url,self._player, self._video)
 
     def _show_video_items(self, items):
@@ -414,7 +425,7 @@ def play_url(url,player,video):
         play_url_omxplayer(url)
 
 def play_url_mplayer(url,video):
-    if video == 1:
+    if video :
         player = subprocess.Popen(
             ['mplayer', '-quiet', '-fs', '--', url.decode('UTF-8').strip()],
             stdout = subprocess.PIPE, stderr = subprocess.PIPE)

@@ -26,8 +26,11 @@ Usage
       --player {mplayer,omxplayer}
                             specifies what program to use to play videos (default:
                         mplayer)
-      --video {0,1}         1 : show video, 0 : don't display video (default: 1)
-      --playlist {0,1}     1 : play all, 0 : play only one item (default: 1)
+    --novideo             if argument present don't display video, else show
+                        video (default: True)
+    --playlist            if argument present play all, else play only video you
+                        choose (default: False)
+
       --searchterm SEARCHTERM
                             enter search term (default: None)
 
